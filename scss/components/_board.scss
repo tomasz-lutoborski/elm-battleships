@@ -1,0 +1,34 @@
+@import "../variables";
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  grid-gap: 5px;
+}
+
+.cell {
+  border: none;
+  border-radius: 1px;
+  width: 3.5rem;
+  height: 3.5rem;
+  background-color: $blue-light;
+  height: 0;
+  padding-bottom: 100%;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.cell--ship {
+  background-color: $blue-dark;
+}
+
+.cell:hover {
+  background-color: $blue;
+}
+
+.board-container {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+}
