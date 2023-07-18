@@ -2,9 +2,9 @@ module View exposing (view, viewMenu)
 
 import Browser exposing (Document)
 import Html exposing (Html, button, div, h2, option, select, text)
-import Html.Attributes exposing (class, classList, default, selected, value)
+import Html.Attributes exposing (class, classList, selected, value)
 import Html.Events exposing (onClick, onInput)
-import Model exposing (Board, Cell, CurrentPlayer(..), Mode(..), Model, Orientation(..), Ship, State(..), Variant(..))
+import Model exposing (Board, Cell, CurrentPlayer(..), Mode(..), Model, Orientation(..), Position, Ship, State(..), Variant(..))
 import Ships exposing (..)
 import Update exposing (Msg(..))
 
@@ -54,29 +54,36 @@ viewMenu model =
         ]
 
 
+chooseBoard : Model -> Board
+chooseBoard model =
+    case model.game.currentPlayer of
+        Player1 ->
+            model.game.player1Board
+
+        Player2 ->
+            model.game.player2Board
+
+
+viewRow : ( Int, List Cell ) -> (Position -> Msg) -> List (Html Msg)
+viewRow ( rowIndex, row ) action =
+    List.indexedMap (\columnIndex cell -> viewCell rowIndex columnIndex cell action) row
+
+
+viewCell : Int -> Int -> Cell -> (Position -> Msg) -> Html Msg
+viewCell row column cell action =
+    let
+        pos =
+            ( column, row )
+    in
+    button [ classList [ ( "cell--ship", cell.isShip ) ], class "cell", onClick (action pos) ] []
+
+
 viewPlacement : Model -> Html Msg
 viewPlacement model =
     let
         board : Board
         board =
-            case model.game.currentPlayer of
-                Player1 ->
-                    model.game.player1Board
-
-                Player2 ->
-                    model.game.player2Board
-
-        viewRow : ( Int, List Cell ) -> List (Html Msg)
-        viewRow ( rowIndex, row ) =
-            List.indexedMap (viewCell rowIndex) row
-
-        viewCell : Int -> Int -> Cell -> Html Msg
-        viewCell row column cell =
-            let
-                pos =
-                    ( column, row )
-            in
-            button [ classList [ ( "cell--ship", cell.isShip ) ], class "cell", onClick (PlaceShip pos) ] []
+            chooseBoard model
 
         shipFromString : String -> Ship
         shipFromString str =
@@ -132,12 +139,28 @@ viewPlacement model =
                 ]
             ]
         , div [ class "board" ]
-            (List.concatMap viewRow (List.indexedMap Tuple.pair board))
-        , if model.mode == PlayerVsPlayer then
+            (List.concatMap (\row -> viewRow row PlaceShip) (List.indexedMap Tuple.pair board))
+        , if model.mode == PlayerVsComputer || model.game.currentPlayer == Player2 then
             button [ class "button button--accept", onClick (ChangeState Playing) ] [ text "Ready to play" ]
 
           else
             button [ class "button button--accept", onClick ChangeCurrentPlayer ] [ text "Next player" ]
+        ]
+
+
+viewPlaying : Model -> Html Msg
+viewPlaying model =
+    let
+        board : Board
+        board =
+            chooseBoard model
+    in
+    div [ class "placement__container" ]
+        [ div [ class "placement__settings" ]
+            [ button [ class "button button--warn", onClick (ChangeState Menu) ] [ text "Back to menu" ]
+            ]
+        , div [ class "board" ]
+            (List.concatMap (\row -> viewRow row Shoot) (List.indexedMap Tuple.pair board))
         ]
 
 
@@ -175,4 +198,16 @@ view model =
             }
 
         Playing ->
-            Debug.todo "ChooseMode"
+            { title = "Battleships - Playing"
+            , body =
+                [ div []
+                    [ case model.flashMessage of
+                        Just message ->
+                            div [ class "flash__container" ] [ h2 [ class "flash__text" ] [ text message ] ]
+
+                        Nothing ->
+                            text ""
+                    , viewPlaying model
+                    ]
+                ]
+            }

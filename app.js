@@ -10585,8 +10585,8 @@ var $author$project$Model$emptyBoard = A2(
 	A2(
 		$elm$core$List$repeat,
 		10,
-		{isHit: false, isShip: false}));
-var $author$project$Model$initialGame = {currentPlayer: $author$project$Model$Player1, placedShips1: _List_Nil, placedShips2: _List_Nil, player1Board: $author$project$Model$emptyBoard, player2Board: $author$project$Model$emptyBoard};
+		{isHit: false, isMiss: false, isShip: false}));
+var $author$project$Model$initialGame = {currentPlayer: $author$project$Model$Player1, isOver: false, placedShips1: _List_Nil, placedShips2: _List_Nil, player1Board: $author$project$Model$emptyBoard, player2Board: $author$project$Model$emptyBoard};
 var $author$project$Model$initialModel = {flashMessage: $elm$core$Maybe$Nothing, game: $author$project$Model$initialGame, mode: $author$project$Model$PlayerVsPlayer, placedShip: $elm$core$Maybe$Nothing, state: $author$project$Model$Menu, variant: $author$project$Model$Standard};
 var $author$project$Main$init = function (_v0) {
 	return _Utils_Tuple2($author$project$Model$initialModel, $elm$core$Platform$Cmd$none);
@@ -10604,6 +10604,7 @@ var $author$project$Ships$carrier = F2(
 	function (position, orientation) {
 		return {name: 'Carrier', orientation: orientation, position: position, size: 5};
 	});
+var $elm$core$Debug$log = _Debug_log;
 var $elm$core$List$any = F2(
 	function (isOkay, list) {
 		any:
@@ -10623,6 +10624,103 @@ var $elm$core$List$any = F2(
 					continue any;
 				}
 			}
+		}
+	});
+var $elm$core$List$all = F2(
+	function (isOkay, list) {
+		return !A2(
+			$elm$core$List$any,
+			A2($elm$core$Basics$composeL, $elm$core$Basics$not, isOkay),
+			list);
+	});
+var $author$project$Update$checkCellsAvailable = F2(
+	function (cells, board) {
+		var forbiddenCells = A2(
+			$elm$core$List$concatMap,
+			function (_v1) {
+				var x = _v1.a;
+				var y = _v1.b;
+				return A2(
+					$elm$core$List$map,
+					function (_v2) {
+						var xi = _v2.a;
+						var yi = _v2.b;
+						return _Utils_Tuple2(xi, yi);
+					},
+					_List_fromArray(
+						[
+							_Utils_Tuple2(x - 1, y - 1),
+							_Utils_Tuple2(x - 1, y),
+							_Utils_Tuple2(x - 1, y + 1),
+							_Utils_Tuple2(x, y - 1),
+							_Utils_Tuple2(x, y),
+							_Utils_Tuple2(x, y + 1),
+							_Utils_Tuple2(x + 1, y - 1),
+							_Utils_Tuple2(x + 1, y),
+							_Utils_Tuple2(x + 1, y + 1)
+						]));
+			},
+			cells);
+		var boardCells = A2(
+			$elm$core$List$indexedMap,
+			F2(
+				function (rowIndex, row) {
+					return A2(
+						$elm$core$List$indexedMap,
+						F2(
+							function (colIndex, cell) {
+								return (cell.isShip && A2(
+									$elm$core$List$any,
+									function (_v0) {
+										var x = _v0.a;
+										var y = _v0.b;
+										return _Utils_eq(x, colIndex) && _Utils_eq(y, rowIndex);
+									},
+									forbiddenCells)) ? false : true;
+							}),
+						row);
+				}),
+			board);
+		return A2(
+			$elm$core$List$all,
+			function (row) {
+				return A2(
+					$elm$core$List$all,
+					function (cell) {
+						return cell;
+					},
+					row);
+			},
+			boardCells);
+	});
+var $elm$core$Tuple$pair = F2(
+	function (a, b) {
+		return _Utils_Tuple2(a, b);
+	});
+var $elm_community$list_extra$List$Extra$zip = $elm$core$List$map2($elm$core$Tuple$pair);
+var $author$project$Update$doesNotCoverOtherShips = F2(
+	function (ship, board) {
+		var _v0 = ship.position;
+		if (_v0.$ === 'Just') {
+			var _v1 = _v0.a;
+			var x = _v1.a;
+			var y = _v1.b;
+			var _v2 = ship.orientation;
+			if (_v2.$ === 'Horizontal') {
+				var shipCells = A2(
+					$elm_community$list_extra$List$Extra$zip,
+					A2($elm$core$List$range, x, x + ship.size),
+					A2($elm$core$List$repeat, ship.size, y));
+				return A2($author$project$Update$checkCellsAvailable, shipCells, board);
+			} else {
+				var shipCells = A2(
+					$elm_community$list_extra$List$Extra$zip,
+					A2($elm$core$List$repeat, ship.size, x),
+					A2($elm$core$List$range, y, y + ship.size));
+				return A2($author$project$Update$checkCellsAvailable, shipCells, board);
+			}
+		} else {
+			return false;
 		}
 	});
 var $elm$core$List$head = function (list) {
@@ -10650,9 +10748,9 @@ var $author$project$Update$isValidShipPosition = F2(
 			var y = _v1.b;
 			var _v2 = ship.orientation;
 			if (_v2.$ === 'Horizontal') {
-				return (x >= 0) && ((y >= 0) && ((_Utils_cmp(x + size, boardWidth) < 1) && (_Utils_cmp(y, boardHeight) < 0)));
+				return (x >= 0) && ((y >= 0) && ((_Utils_cmp(x + size, boardWidth) < 1) && ((_Utils_cmp(y, boardHeight) < 0) && A2($author$project$Update$doesNotCoverOtherShips, ship, board))));
 			} else {
-				return (x >= 0) && ((y >= 0) && ((_Utils_cmp(x, boardWidth) < 0) && (_Utils_cmp(y + ship.size, boardHeight) < 1)));
+				return (x >= 0) && ((y >= 0) && ((_Utils_cmp(x, boardWidth) < 0) && ((_Utils_cmp(y + ship.size, boardHeight) < 1) && A2($author$project$Update$doesNotCoverOtherShips, ship, board))));
 			}
 		} else {
 			return false;
@@ -10747,26 +10845,16 @@ var $author$project$Update$update = F2(
 								{state: state}),
 							$elm$core$Platform$Cmd$none);
 					default:
-						var _v3 = $author$project$Update$validBoards(model);
-						if (_v3) {
-							return _Utils_Tuple2(
-								_Utils_update(
-									model,
-									{state: state}),
-								$elm$core$Platform$Cmd$none);
-						} else {
-							return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
-						}
+						return $author$project$Update$validBoards(model) ? _Utils_Tuple2(
+							_Utils_update(
+								model,
+								{state: state}),
+							$elm$core$Platform$Cmd$none) : _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 				}
 			case 'Shoot':
-				var x = msg.a;
-				var y = msg.b;
-				return _Debug_todo(
-					'Update',
-					{
-						start: {line: 64, column: 13},
-						end: {line: 64, column: 23}
-					})('MakeMove');
+				var pos = msg.a;
+				var _v3 = $elm$core$Debug$log('shoot');
+				return _Utils_Tuple2(model, $elm$core$Platform$Cmd$none);
 			case 'ChooseVariant':
 				var variant = msg.a;
 				return _Utils_Tuple2(
@@ -10779,8 +10867,8 @@ var $author$project$Update$update = F2(
 				return _Debug_todo(
 					'Update',
 					{
-						start: {line: 70, column: 13},
-						end: {line: 70, column: 23}
+						start: {line: 74, column: 13},
+						end: {line: 74, column: 23}
 					})('TargetHit');
 			case 'ChoosePlacedShip':
 				var ship = msg.a;
@@ -10917,7 +11005,6 @@ var $author$project$Model$Mines = {$: 'Mines'};
 var $author$project$Model$PlacingShips = {$: 'PlacingShips'};
 var $author$project$Model$PlayerVsComputer = {$: 'PlayerVsComputer'};
 var $author$project$Model$Salvo = {$: 'Salvo'};
-var $elm$core$Debug$log = _Debug_log;
 var $elm$html$Html$option = _VirtualDom_node('option');
 var $elm$html$Html$select = _VirtualDom_node('select');
 var $elm$json$Json$Encode$bool = _Json_wrap;
@@ -11060,6 +11147,26 @@ var $author$project$Ships$battleship = F2(
 	function (position, orientation) {
 		return {name: 'Battleship', orientation: orientation, position: position, size: 4};
 	});
+var $author$project$View$chooseBoard = function (model) {
+	var _v0 = model.game.currentPlayer;
+	if (_v0.$ === 'Player1') {
+		return model.game.player1Board;
+	} else {
+		return model.game.player2Board;
+	}
+};
+var $author$project$Ships$cruiser = F2(
+	function (position, orientation) {
+		return {name: 'Cruiser', orientation: orientation, position: position, size: 3};
+	});
+var $author$project$Ships$destroyer = F2(
+	function (position, orientation) {
+		return {name: 'Destroyer', orientation: orientation, position: position, size: 2};
+	});
+var $author$project$Ships$submarine = F2(
+	function (position, orientation) {
+		return {name: 'Submarine', orientation: orientation, position: position, size: 3};
+	});
 var $elm$core$List$filter = F2(
 	function (isGood, list) {
 		return A3(
@@ -11081,49 +11188,37 @@ var $elm$html$Html$Attributes$classList = function (classes) {
 				$elm$core$Tuple$first,
 				A2($elm$core$List$filter, $elm$core$Tuple$second, classes))));
 };
-var $author$project$Ships$cruiser = F2(
-	function (position, orientation) {
-		return {name: 'Cruiser', orientation: orientation, position: position, size: 3};
+var $author$project$View$viewCell = F4(
+	function (row, column, cell, action) {
+		var pos = _Utils_Tuple2(column, row);
+		return A2(
+			$elm$html$Html$button,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$classList(
+					_List_fromArray(
+						[
+							_Utils_Tuple2('cell--ship', cell.isShip)
+						])),
+					$elm$html$Html$Attributes$class('cell'),
+					$elm$html$Html$Events$onClick(
+					action(pos))
+				]),
+			_List_Nil);
 	});
-var $author$project$Ships$destroyer = F2(
-	function (position, orientation) {
-		return {name: 'Destroyer', orientation: orientation, position: position, size: 2};
-	});
-var $elm$core$Tuple$pair = F2(
-	function (a, b) {
-		return _Utils_Tuple2(a, b);
-	});
-var $author$project$Ships$submarine = F2(
-	function (position, orientation) {
-		return {name: 'Submarine', orientation: orientation, position: position, size: 3};
-	});
-var $author$project$View$viewPlacement = function (model) {
-	var viewCell = F3(
-		function (row, column, cell) {
-			var pos = _Utils_Tuple2(column, row);
-			return A2(
-				$elm$html$Html$button,
-				_List_fromArray(
-					[
-						$elm$html$Html$Attributes$classList(
-						_List_fromArray(
-							[
-								_Utils_Tuple2('cell--ship', cell.isShip)
-							])),
-						$elm$html$Html$Attributes$class('cell'),
-						$elm$html$Html$Events$onClick(
-						$author$project$Update$PlaceShip(pos))
-					]),
-				_List_Nil);
-		});
-	var viewRow = function (_v3) {
-		var rowIndex = _v3.a;
-		var row = _v3.b;
+var $author$project$View$viewRow = F2(
+	function (_v0, action) {
+		var rowIndex = _v0.a;
+		var row = _v0.b;
 		return A2(
 			$elm$core$List$indexedMap,
-			viewCell(rowIndex),
+			F2(
+				function (columnIndex, cell) {
+					return A4($author$project$View$viewCell, rowIndex, columnIndex, cell, action);
+				}),
 			row);
-	};
+	});
+var $author$project$View$viewPlacement = function (model) {
 	var shipFromString = function (str) {
 		var defaultPosition = $elm$core$Maybe$Nothing;
 		var defaultOrientation = $author$project$Model$Horizontal;
@@ -11142,14 +11237,7 @@ var $author$project$View$viewPlacement = function (model) {
 				return A2($author$project$Ships$carrier, defaultPosition, defaultOrientation);
 		}
 	};
-	var board = function () {
-		var _v1 = model.game.currentPlayer;
-		if (_v1.$ === 'Player1') {
-			return model.game.player1Board;
-		} else {
-			return model.game.player2Board;
-		}
-	}();
+	var board = $author$project$View$chooseBoard(model);
 	return A2(
 		$elm$html$Html$div,
 		_List_fromArray(
@@ -11268,9 +11356,11 @@ var $author$project$View$viewPlacement = function (model) {
 					]),
 				A2(
 					$elm$core$List$concatMap,
-					viewRow,
+					function (row) {
+						return A2($author$project$View$viewRow, row, $author$project$Update$PlaceShip);
+					},
 					A2($elm$core$List$indexedMap, $elm$core$Tuple$pair, board))),
-				_Utils_eq(model.mode, $author$project$Model$PlayerVsPlayer) ? A2(
+				(_Utils_eq(model.mode, $author$project$Model$PlayerVsComputer) || _Utils_eq(model.game.currentPlayer, $author$project$Model$Player2)) ? A2(
 				$elm$html$Html$button,
 				_List_fromArray(
 					[
@@ -11292,6 +11382,54 @@ var $author$project$View$viewPlacement = function (model) {
 					[
 						$elm$html$Html$text('Next player')
 					]))
+			]));
+};
+var $author$project$Update$Shoot = function (a) {
+	return {$: 'Shoot', a: a};
+};
+var $author$project$View$viewPlaying = function (model) {
+	var board = $author$project$View$chooseBoard(model);
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				$elm$html$Html$Attributes$class('placement__container')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('placement__settings')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$class('button button--warn'),
+								$elm$html$Html$Events$onClick(
+								$author$project$Update$ChangeState($author$project$Model$Menu))
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('Back to menu')
+							]))
+					])),
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('board')
+					]),
+				A2(
+					$elm$core$List$concatMap,
+					function (row) {
+						return A2($author$project$View$viewRow, row, $author$project$Update$Shoot);
+					},
+					A2($elm$core$List$indexedMap, $elm$core$Tuple$pair, board)))
 			]));
 };
 var $author$project$View$view = function (model) {
@@ -11380,15 +11518,49 @@ var $author$project$View$view = function (model) {
 				title: 'Battleships - Placing Ships'
 			};
 		default:
-			return _Debug_todo(
-				'View',
-				{
-					start: {line: 178, column: 13},
-					end: {line: 178, column: 23}
-				})('ChooseMode');
+			return {
+				body: _List_fromArray(
+					[
+						A2(
+						$elm$html$Html$div,
+						_List_Nil,
+						_List_fromArray(
+							[
+								function () {
+								var _v3 = model.flashMessage;
+								if (_v3.$ === 'Just') {
+									var message = _v3.a;
+									return A2(
+										$elm$html$Html$div,
+										_List_fromArray(
+											[
+												$elm$html$Html$Attributes$class('flash__container')
+											]),
+										_List_fromArray(
+											[
+												A2(
+												$elm$html$Html$h2,
+												_List_fromArray(
+													[
+														$elm$html$Html$Attributes$class('flash__text')
+													]),
+												_List_fromArray(
+													[
+														$elm$html$Html$text(message)
+													]))
+											]));
+								} else {
+									return $elm$html$Html$text('');
+								}
+							}(),
+								$author$project$View$viewPlaying(model)
+							]))
+					]),
+				title: 'Battleships - Playing'
+			};
 	}
 };
 var $author$project$Main$main = $elm$browser$Browser$document(
 	{init: $author$project$Main$init, subscriptions: $author$project$Main$subscriptions, update: $author$project$Update$update, view: $author$project$View$view});
 _Platform_export({'Main':{'init':$author$project$Main$main(
-	$elm$json$Json$Decode$succeed(_Utils_Tuple0))({"versions":{"elm":"0.19.1"},"types":{"message":"Update.Msg","aliases":{"Model.Position":{"args":[],"type":"( Basics.Int, Basics.Int )"},"Model.Ship":{"args":[],"type":"{ size : Basics.Int, orientation : Model.Orientation, position : Maybe.Maybe Model.Position, name : String.String }"}},"unions":{"Update.Msg":{"args":[],"tags":{"ChooseMode":["Model.Mode"],"ChooseVariant":["Model.Variant"],"Shoot":["Basics.Int","Basics.Int"],"ChangeState":["Model.State"],"TargetHit":["Model.Target"],"RotateShip":[],"PlaceShip":["Model.Position"],"ChoosePlacedShip":["Model.Ship"],"ChangeCurrentPlayer":[],"SetFlashMessage":["String.String"],"ClearFlashMessage":[]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Model.Mode":{"args":[],"tags":{"PlayerVsPlayer":[],"PlayerVsComputer":[]}},"Model.Orientation":{"args":[],"tags":{"Horizontal":[],"Vertical":[]}},"Model.State":{"args":[],"tags":{"PlacingShips":[],"Menu":[],"Playing":[]}},"String.String":{"args":[],"tags":{"String":[]}},"Model.Target":{"args":[],"tags":{"Hit":[],"Miss":[],"Sunk":[]}},"Model.Variant":{"args":[],"tags":{"Standard":[],"Salvo":[],"Mines":[]}}}}})}});}(this));
+	$elm$json$Json$Decode$succeed(_Utils_Tuple0))({"versions":{"elm":"0.19.1"},"types":{"message":"Update.Msg","aliases":{"Model.Position":{"args":[],"type":"( Basics.Int, Basics.Int )"},"Model.Ship":{"args":[],"type":"{ size : Basics.Int, orientation : Model.Orientation, position : Maybe.Maybe Model.Position, name : String.String }"}},"unions":{"Update.Msg":{"args":[],"tags":{"ChooseMode":["Model.Mode"],"ChooseVariant":["Model.Variant"],"Shoot":["Model.Position"],"ChangeState":["Model.State"],"TargetHit":["Model.Target"],"RotateShip":[],"PlaceShip":["Model.Position"],"ChoosePlacedShip":["Model.Ship"],"ChangeCurrentPlayer":[],"SetFlashMessage":["String.String"],"ClearFlashMessage":[]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Maybe.Maybe":{"args":["a"],"tags":{"Just":["a"],"Nothing":[]}},"Model.Mode":{"args":[],"tags":{"PlayerVsPlayer":[],"PlayerVsComputer":[]}},"Model.Orientation":{"args":[],"tags":{"Horizontal":[],"Vertical":[]}},"Model.State":{"args":[],"tags":{"PlacingShips":[],"Menu":[],"Playing":[]}},"String.String":{"args":[],"tags":{"String":[]}},"Model.Target":{"args":[],"tags":{"Hit":[],"Miss":[],"Sunk":[]}},"Model.Variant":{"args":[],"tags":{"Standard":[],"Salvo":[],"Mines":[]}}}}})}});}(this));

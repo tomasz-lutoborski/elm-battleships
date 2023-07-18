@@ -1,5 +1,6 @@
 module Update exposing (Msg(..), update)
 
+import List.Extra exposing (zip)
 import Model exposing (Board, CurrentPlayer(..), Game, Mode, Model, Orientation(..), Position, Ship, State(..), Target, Variant, initialGame)
 import Process
 import Ships exposing (carrier)
@@ -9,7 +10,7 @@ import Task
 type Msg
     = ChooseMode Mode
     | ChooseVariant Variant
-    | Shoot Int Int
+    | Shoot Position
     | ChangeState State
     | TargetHit Target
     | RotateShip
@@ -53,15 +54,18 @@ update msg model =
                     ( { model | state = state }, Cmd.none )
 
                 Playing ->
-                    case validBoards model of
-                        True ->
-                            ( { model | state = state }, Cmd.none )
+                    if validBoards model then
+                        ( { model | state = state }, Cmd.none )
 
-                        False ->
-                            ( model, Cmd.none )
+                    else
+                        ( model, Cmd.none )
 
-        Shoot x y ->
-            Debug.todo "MakeMove"
+        Shoot pos ->
+            let
+                _ =
+                    Debug.log "shoot"
+            in
+            ( model, Cmd.none )
 
         ChooseVariant variant ->
             ( { model | variant = variant }, Cmd.none )
@@ -197,10 +201,65 @@ isValidShipPosition ship board =
         Just ( x, y ) ->
             case ship.orientation of
                 Horizontal ->
-                    x >= 0 && y >= 0 && x + size <= boardWidth && y < boardHeight
+                    x >= 0 && y >= 0 && x + size <= boardWidth && y < boardHeight && doesNotCoverOtherShips ship board
 
                 Vertical ->
-                    x >= 0 && y >= 0 && x < boardWidth && y + ship.size <= boardHeight
+                    x >= 0 && y >= 0 && x < boardWidth && y + ship.size <= boardHeight && doesNotCoverOtherShips ship board
 
         Nothing ->
             False
+
+
+doesNotCoverOtherShips : Ship -> Board -> Bool
+doesNotCoverOtherShips ship board =
+    case ship.position of
+        Just ( x, y ) ->
+            case ship.orientation of
+                Horizontal ->
+                    let
+                        shipCells =
+                            zip (List.range x (x + ship.size)) (List.repeat ship.size y)
+                    in
+                    checkCellsAvailable shipCells board
+
+                Vertical ->
+                    let
+                        shipCells =
+                            zip (List.repeat ship.size x) (List.range y (y + ship.size))
+                    in
+                    checkCellsAvailable shipCells board
+
+        Nothing ->
+            False
+
+
+checkCellsAvailable : List ( Int, Int ) -> Board -> Bool
+checkCellsAvailable cells board =
+    let
+        forbiddenCells =
+            List.concatMap
+                (\( x, y ) ->
+                    List.map
+                        (\( xi, yi ) ->
+                            ( xi, yi )
+                        )
+                        [ ( x - 1, y - 1 ), ( x - 1, y ), ( x - 1, y + 1 ), ( x, y - 1 ), ( x, y ), ( x, y + 1 ), ( x + 1, y - 1 ), ( x + 1, y ), ( x + 1, y + 1 ) ]
+                )
+                cells
+
+        boardCells =
+            List.indexedMap
+                (\rowIndex row ->
+                    List.indexedMap
+                        (\colIndex cell ->
+                            if cell.isShip && List.any (\( x, y ) -> x == colIndex && y == rowIndex) forbiddenCells then
+                                False
+
+                            else
+                                True
+                        )
+                        row
+                )
+                board
+    in
+    List.all (\row -> List.all (\cell -> cell) row) boardCells

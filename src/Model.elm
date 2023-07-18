@@ -29,6 +29,7 @@ type alias Game =
     , placedShips1 : List Ship
     , placedShips2 : List Ship
     , currentPlayer : CurrentPlayer
+    , isOver : Bool
     }
 
 
@@ -49,6 +50,7 @@ type alias Board =
 type alias Cell =
     { isShip : Bool
     , isHit : Bool
+    , isMiss : Bool
     }
 
 
@@ -93,9 +95,10 @@ initialGame =
     , currentPlayer = Player1
     , placedShips1 = []
     , placedShips2 = []
+    , isOver = False
     }
 
 
 emptyBoard : Board
 emptyBoard =
-    List.repeat 10 (List.repeat 10 { isShip = False, isHit = False })
+    List.repeat 10 (List.repeat 10 { isShip = False, isHit = False, isMiss = False })
